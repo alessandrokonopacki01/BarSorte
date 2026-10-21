@@ -587,21 +587,32 @@ $("numberGrid").addEventListener("click", event => {
   $("participantName").focus();
 });
 
+
 $("numberForm").addEventListener("submit", async event => {
   event.preventDefault();
 
-  const numero = Number($("selectedNumber").value);
   const nome = $("participantName").value.trim();
+  const numerosEscolhidos = [...selectedNumbers]
+    .sort((a, b) => a - b);
 
-  if (!Number.isInteger(numero) || numero < 1 ||
-      numero > 100 || !nome || nome.length > 80) {
-    toast("Confira os dados do participante.");
+  if (!nome || nome.length > 80) {
+    toast("Informe o nome do participante.");
     return;
   }
 
+  if (
+    numerosEscolhidos.length === 0 ||
+    numerosEscolhidos.length > MAX_SELECTION
+  ) {
+    toast("Selecione entre 1 e 20 números.");
+    return;
+  }
+
+  const roundId = selectedRoundId;
+
   try {
     const barRef = doc(db, "bares", user.uid);
-    const ref = roundReference(selectedRoundId);
+    const ref = roundReference(roundId);
 
     await runTransaction(db, async transaction => {
       const barSnap = await transaction.get(barRef);
@@ -616,31 +627,49 @@ $("numberForm").addEventListener("submit", async event => {
       }
 
       const data = snapshot.data();
-      const numeros = data.numeros || [];
+      const existentes = data.numeros || [];
 
       if (data.status !== "aberta") {
         throw new Error("Rodada encerrada.");
       }
 
-      if (numeros.some(item => item.numero === numero)) {
-        throw new Error("Número já registrado.");
+      const ocupados = new Set(
+        existentes.map(item => item.numero)
+      );
+
+      for (const numero of numerosEscolhidos) {
+        if (ocupados.has(numero)) {
+          throw new Error(
+            `O número ${numero} já foi registrado.`
+          );
+        }
       }
 
-      if (numeros.length >= 100) {
-        throw new Error("Todos os números estão ocupados.");
+      if (existentes.length + numerosEscolhidos.length > 100) {
+        throw new Error("A rodada excederia 100 números.");
       }
+
+      const novos = numerosEscolhidos.map(numero => ({
+        numero,
+        nome
+      }));
 
       transaction.update(ref, {
-        numeros: [...numeros, { numero, nome }]
+        numeros: [...existentes, ...novos]
       });
     });
 
+    selectedNumbers.clear();
     $("numberForm").reset();
-    toast("Número demonstrativo registrado.");
+    toast("Números demonstrativos registrados!");
+    updateSelection();
+
   } catch (error) {
-    handleError(error);
+    console.error(error);
+    toast(error.message || "Erro ao registrar números.");
   }
 });
+
 
 // =============================================
 // SIMULAÇÃO DO RESULTADO
