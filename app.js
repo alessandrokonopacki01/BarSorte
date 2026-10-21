@@ -1247,3 +1247,26 @@ $("btnWinnerWhatsapp").addEventListener(
   }
 );
 
+$("btnOpenTV").addEventListener("click", () => {
+
+  if (!user || !selectedRoundId) {
+    toast("Selecione uma rodada primeiro.");
+    return;
+  }
+
+  const url = new URL(
+    "./tela.html",
+    window.location.href
+  );
+
+  url.searchParams.set("bar", user.uid);
+  url.searchParams.set("rodada", selectedRoundId);
+
+  window.open(
+    url.toString(),
+    "_blank",
+    "noopener,noreferrer"
+  );
+
+});
+
