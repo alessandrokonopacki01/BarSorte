@@ -178,14 +178,14 @@
             </div>
 
             <div class="card">
-                <h2>Criar rodada demonstrativa</h2>
+                <h2>Criar rodada</h2>
                 <form id="roundForm" class="form-grid">
                     <div>
                         <label>Nome da rodada</label>
                         <input id="roundName" required placeholder="Rodada 01" maxlength="60">
                     </div>
                     <div>
-                        <label>Valor fictício por número (R$)</label>
+                        <label>Valor por número (R$)</label>
                         <input id="roundPrice" type="number" min="0.01" max="1000" step="0.01" required value="5">
                     </div>
                     <button class="btn primary" type="submit">
@@ -204,7 +204,7 @@
             <section id="roundDetail" class="card hidden">
                 <div class="section-header">
                     <div>
-                        <span class="eyebrow">RODADA DEMONSTRATIVA</span>
+                        <span class="eyebrow">RODADA</span>
                         <h2 id="selectedRoundTitle"></h2>
                     </div>
                     <button id="closeDetail" class="btn secondary">
@@ -217,8 +217,20 @@
 
                 <form id="numberForm" class="inline-form">
                     <div>
-                        <label>Nome fictício do participante</label>
+                        <label>Nome do participante</label>
                         <input id="participantName" required maxlength="80" placeholder="Ex.: Cliente Teste">
+                    </div>
+
+                    <div>
+                        <label for="participantWhatsapp">WhatsApp do participante</label>
+                        <input id="participantWhatsapp" type="tel" placeholder="(42) 99999-9999" maxlength="16"
+                            autocomplete="tel" required>
+                    </div>
+
+                    <div>
+                        <label for="participantPix">Chave Pix do participante</label>
+                        <input id="participantPix" type="text" placeholder="CPF, e-mail, telefone ou chave aleatória"
+                            maxlength="100" required>
                     </div>
 
                     <div>
@@ -253,6 +265,58 @@
                 </div>
 
                 <div id="roundResult" class="result"></div>
+                
+<div id="winnerPanel" class="winner-panel hidden">
+
+  <div class="winner-header">
+    <span class="winner-icon">🏆</span>
+    <h2>Resultado da rodada</h2>
+    <p>Resultado demonstrativo</p>
+  </div>
+
+  <div class="winner-number-box">
+    <span>NÚMERO SORTEADO</span>
+    <strong id="winnerNumber">---</strong>
+    <h3 id="winnerName">---</h3>
+  </div>
+
+  <div class="winner-info">
+
+    <div class="winner-field">
+      <label>WhatsApp cadastrado</label>
+      <strong id="winnerWhatsapp">---</strong>
+
+      <button
+        type="button"
+        id="btnWinnerWhatsapp"
+        class="btn secondary full"
+      >
+        Abrir WhatsApp
+      </button>
+    </div>
+
+    <div class="winner-field">
+      <label>Chave Pix cadastrada</label>
+      <strong id="winnerPix">---</strong>
+
+      <button
+        type="button"
+        id="btnCopyPix"
+        class="btn secondary full"
+      >
+        Copiar chave Pix
+      </button>
+    </div>
+
+  </div>
+
+  <div class="winner-prize">
+    <span>Prêmio ilustrativo</span>
+    <strong id="winnerPrize">R$ 0,00</strong>
+  </div>
+
+</div>
+
 
                 <button id="drawButton" class="btn primary full">
                     Mostrar o resultado da rodada

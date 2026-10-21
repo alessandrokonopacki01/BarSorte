@@ -823,6 +823,7 @@ function renderRoundDetail() {
       : "Rodada aberta";
 
   updateSelection();
+  renderWinner(round);
 }
 
 // =============================================
@@ -886,9 +887,19 @@ $("numberForm").addEventListener(
   async event => {
     event.preventDefault();
 
-    const nome =
-      $("participantName").value.trim();
+    const nome = $("participantName").value.trim();
+    const whatsapp = $("participantWhatsapp").value.replace(/\D/g, "");
+    const pix = $("participantPix").value.trim();
 
+if (whatsapp.length !== 11 && whatsapp.length !== 10) {
+  toast("Informe um WhatsApp válido com DDD.");
+  return;
+}
+
+if (!pix || pix.length > 100) {
+  toast("Informe uma chave Pix.");
+  return;
+}
     const numerosEscolhidos =
       [...selectedNumbers].sort(
         (a, b) => a - b
@@ -978,13 +989,12 @@ $("numberForm").addEventListener(
             );
           }
 
-          const novos =
-            numerosEscolhidos.map(
-              numero => ({
-                numero,
-                nome
-              })
-            );
+const novos = numerosEscolhidos.map(numero => ({
+  numero,
+  nome,
+  whatsapp,
+  pix
+}));
 
           transaction.update(ref, {
             numeros: [
@@ -998,6 +1008,86 @@ $("numberForm").addEventListener(
       selectedNumbers.clear();
 
       $("numberForm").reset();
+
+function renderWinner(round) {
+  const panel = $("winnerPanel");
+
+  const closed =
+    round.status === "encerrada" &&
+    Number.isInteger(round.resultado);
+
+  if (!closed) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  const winner = (round.numeros || []).find(
+    item => item.numero === round.resultado
+  );
+
+  if (!winner) {
+    panel.classList.add("hidden");
+    console.warn(
+      "Participante não encontrado para o resultado:",
+      round.resultado
+    );
+    return;
+  }
+
+  const whatsapp = String(
+    winner.whatsapp || ""
+  ).replace(/\D/g, "");
+
+  const pix = String(winner.pix || "").trim();
+
+  const whatsappValido =
+    whatsapp.length === 10 ||
+    whatsapp.length === 11;
+
+  const receita =
+    (round.numeros || []).length *
+    round.precoCentavos;
+
+  const premio =
+    Math.round(receita * 0.50);
+
+  // Exibição segura sem inserir dados do usuário
+  // diretamente como HTML.
+  $("winnerNumber").textContent =
+    String(winner.numero).padStart(3, "0");
+
+  $("winnerName").textContent =
+    winner.nome || "Não cadastrado";
+
+  $("winnerWhatsapp").textContent =
+    whatsappValido
+      ? whatsapp.replace(
+          /^(\d{2})(\d{4,5})(\d{4})$/,
+          "($1) $2-$3"
+        )
+      : "Não cadastrado";
+
+  $("winnerPix").textContent =
+    pix || "Não cadastrado";
+
+  $("winnerPrize").textContent =
+    money(premio);
+
+  $("btnWinnerWhatsapp").disabled =
+    !whatsappValido;
+
+  $("btnCopyPix").disabled =
+    !pix;
+
+  // Guarda os dados nos próprios botões
+  // para as ações de clique.
+  $("btnWinnerWhatsapp").dataset.phone =
+    whatsappValido ? whatsapp : "";
+
+  $("btnCopyPix").dataset.pix = pix;
+
+  panel.classList.remove("hidden");
+}
 
       renderRoundDetail();
 
@@ -1113,3 +1203,49 @@ $("drawButton").addEventListener(
     }
   }
 );
+
+$("btnCopyPix").addEventListener(
+  "click",
+  async () => {
+    const pix = $("btnCopyPix").dataset.pix;
+
+    if (!pix) {
+      toast("Chave Pix não cadastrada.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(pix);
+      toast("Chave Pix copiada!");
+    } catch (error) {
+      console.error(error);
+      toast("Não foi possível copiar a chave Pix.");
+    }
+  }
+);
+
+$("btnWinnerWhatsapp").addEventListener(
+  "click",
+  () => {
+    const phone =
+      $("btnWinnerWhatsapp").dataset.phone;
+
+    if (!phone) {
+      toast("WhatsApp não cadastrado.");
+      return;
+    }
+
+    const internacional =
+      `55${phone}`;
+
+    const url =
+      `https://wa.me/${internacional}`;
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+);
+

@@ -403,3 +403,120 @@ td { overflow-wrap: anywhere; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================================
+   PAINEL DO PARTICIPANTE SORTEADO
+======================================== */
+
+.winner-panel {
+  border: 1px solid var(--gold);
+  border-radius: 15px;
+  background: var(--surface);
+  padding: 25px;
+  margin: 25px 0;
+}
+
+.winner-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.winner-icon {
+  display: block;
+  font-size: 42px;
+  margin-bottom: 10px;
+}
+
+.winner-header h2 {
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+
+.winner-header p {
+  font-size: 13px;
+}
+
+.winner-number-box {
+  text-align: center;
+  padding: 25px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  margin-bottom: 20px;
+}
+
+.winner-number-box span {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.winner-number-box strong {
+  display: block;
+  color: var(--gold);
+  font-size: 64px;
+  line-height: 1.4;
+}
+
+.winner-number-box h3 {
+  font-size: 23px;
+  margin: 5px 0;
+}
+
+.winner-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.winner-field {
+  background: var(--surface-2);
+  padding: 17px;
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.winner-field label {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.winner-field strong {
+  display: block;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+
+.winner-prize {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-top: 1px solid var(--border);
+  margin-top: 22px;
+  padding-top: 20px;
+}
+
+.winner-prize span {
+  color: var(--muted);
+}
+
+.winner-prize strong {
+  color: var(--gold);
+  font-size: 25px;
+}
+
+@media (max-width: 600px) {
+  .winner-info {
+    grid-template-columns: 1fr;
+  }
+
+  .winner-number-box strong {
+    font-size: 50px;
+  }
+
+  .winner-prize {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
