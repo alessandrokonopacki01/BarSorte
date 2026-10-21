@@ -361,3 +361,45 @@ td { overflow-wrap: anywhere; }
   #userLabel { display: none; }
   .round-item { flex-direction: column; align-items: stretch; }
 }
+
+.selection-info {
+  min-height: 47px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--gold);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.selection-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0 24px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #11151c;
+}
+
+.selection-footer strong {
+  color: var(--gold);
+  font-size: 20px;
+}
+
+.number.chosen {
+  background: var(--gold);
+  color: #111;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px #e5b34c40;
+}
+
+@media (max-width: 800px) {
+  #numberForm {
+    grid-template-columns: 1fr;
+  }
+}

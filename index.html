@@ -1,258 +1,270 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BarSorte | Gestão de Rodadas</title>
-  <link rel="stylesheet" href="./style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BarSorte | Gestão de Rodadas</title>
+    <link rel="stylesheet" href="./style.css">
 </head>
+
 <body>
 
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-icon">★</div>
-      <div>
-        <strong>BarSorte</strong>
-        <small>Gestão de estabelecimentos</small>
-      </div>
-    </div>
-    <div class="top-actions">
-      <span id="userLabel"></span>
-      <button id="btnLogout" class="btn secondary hidden">Sair</button>
-    </div>
-  </header>
-
-  <main class="container">
-
-    <!-- LOGIN -->
-    <section id="loginView" class="login-screen">
-      <div class="card login-card">
-        <div class="login-logo">★</div>
-        <h1>Bem-vindo ao BarSorte</h1>
-        <p>Acesse o painel do seu estabelecimento.</p>
-
-        <form id="loginForm">
-          <label for="email">E-mail</label>
-          <input type="email" id="email" required
-                 placeholder="seu@email.com">
-
-          <label for="password">Senha</label>
-          <input type="password" id="password" required
-                 placeholder="Sua senha">
-
-          <button class="btn primary full" type="submit">
-            Entrar no sistema
-          </button>
-        </form>
-        <p id="loginError" class="error"></p>
-      </div>
-    </section>
-
-    <!-- BLOQUEIO -->
-    <section id="blockedView" class="hidden centered">
-      <div class="card">
-        <h2>Acesso suspenso</h2>
-        <p>
-          O acesso deste estabelecimento está temporariamente
-          indisponível. Entre em contato com o administrador.
-        </p>
-      </div>
-    </section>
-
-    <!-- ADMIN -->
-    <section id="adminView" class="hidden">
-      <div class="page-heading">
-        <div>
-          <span class="eyebrow">ADMINISTRAÇÃO</span>
-          <h1>Painel de Controle</h1>
-          <p>Estabelecimentos, licenças e relatórios demonstrativos.</p>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-icon">★</div>
+            <div>
+                <strong>BarSorte</strong>
+                <small>Gestão de estabelecimentos</small>
+            </div>
         </div>
-        <span class="pill">Administrador</span>
-      </div>
-
-      <div class="stats">
-        <article class="card stat">
-          <span>Estabelecimentos</span>
-          <strong id="totalBares">0</strong>
-        </article>
-        <article class="card stat">
-          <span>Ativos</span>
-          <strong id="totalAtivos">0</strong>
-        </article>
-        <article class="card stat">
-          <span>Arrecadação simulada</span>
-          <strong id="totalArrecadacao">R$ 0,00</strong>
-        </article>
-        <article class="card stat">
-          <span>Comissão simulada</span>
-          <strong id="totalComissao">R$ 0,00</strong>
-        </article>
-      </div>
-
-      <div class="card">
-        <h2>Cadastrar estabelecimento</h2>
-        <p class="muted">
-          Crie primeiro a conta no Firebase Authentication e informe
-          aqui o UID do usuário.
-        </p>
-        <form id="barForm" class="form-grid">
-          <div>
-            <label>Nome do estabelecimento</label>
-            <input id="barName" required placeholder="Bar Central">
-          </div>
-          <div>
-            <label>UID do Firebase Authentication</label>
-            <input id="barUid" required placeholder="UID do usuário">
-          </div>
-          <button class="btn primary" type="submit">
-            Cadastrar bar
-          </button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2>Estabelecimentos cadastrados</h2>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Estabelecimento</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="barsTable"></tbody>
-          </table>
+        <div class="top-actions">
+            <span id="userLabel"></span>
+            <button id="btnLogout" class="btn secondary hidden">Sair</button>
         </div>
-      </div>
+    </header>
 
-      <div class="card">
-        <h2>Histórico de rodadas</h2>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Bar</th>
-                <th>Rodada</th>
-                <th>Status</th>
-                <th>Vendidos (demo)</th>
-                <th>Arrecadação</th>
-                <th>Comissão</th>
-                <th>Resultado</th>
-              </tr>
-            </thead>
-            <tbody id="adminRoundsTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <main class="container">
 
-    <!-- PAINEL DO BAR -->
-    <section id="barView" class="hidden">
-      <div class="page-heading">
-        <div>
-          <span class="eyebrow">ESTABELECIMENTO</span>
-          <h1 id="barTitle">Meu estabelecimento</h1>
-          <p>Gerencie suas rodadas de demonstração.</p>
-        </div>
-        <span class="pill">Modo demonstração</span>
-      </div>
+        <!-- LOGIN -->
+        <section id="loginView" class="login-screen">
+            <div class="card login-card">
+                <div class="login-logo">★</div>
+                <h1>Bem-vindo ao BarSorte</h1>
+                <p>Acesse o painel do seu estabelecimento.</p>
 
-      <div class="stats">
-        <article class="card stat">
-          <span>Rodadas</span>
-          <strong id="barTotalRounds">0</strong>
-        </article>
-        <article class="card stat">
-          <span>Números registrados</span>
-          <strong id="barNumbers">0</strong>
-        </article>
-        <article class="card stat">
-          <span>Total simulado</span>
-          <strong id="barRevenue">R$ 0,00</strong>
-        </article>
-        <article class="card stat">
-          <span>Comissão simulada</span>
-          <strong id="barCommission">R$ 0,00</strong>
-        </article>
-      </div>
+                <form id="loginForm">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" required placeholder="seu@email.com">
 
-      <div class="card">
-        <h2>Criar rodada demonstrativa</h2>
-        <form id="roundForm" class="form-grid">
-          <div>
-            <label>Nome da rodada</label>
-            <input id="roundName" required
-                   placeholder="Rodada 01" maxlength="60">
-          </div>
-          <div>
-            <label>Valor fictício por número (R$)</label>
-            <input id="roundPrice" type="number"
-                   min="0.01" max="1000" step="0.01" required
-                   value="5">
-          </div>
-          <button class="btn primary" type="submit">
-            Criar rodada
-          </button>
-        </form>
-      </div>
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" required placeholder="Sua senha">
 
-      <div class="card">
-        <div class="section-header">
-          <h2>Rodadas cadastradas</h2>
-        </div>
-        <div id="roundsList" class="rounds-list"></div>
-      </div>
+                    <button class="btn primary full" type="submit">
+                        Entrar no sistema
+                    </button>
+                </form>
+                <p id="loginError" class="error"></p>
+            </div>
+        </section>
 
-      <section id="roundDetail" class="card hidden">
-        <div class="section-header">
-          <div>
-            <span class="eyebrow">RODADA DEMONSTRATIVA</span>
-            <h2 id="selectedRoundTitle"></h2>
-          </div>
-          <button id="closeDetail" class="btn secondary">
-            Fechar
-          </button>
-        </div>
+        <!-- BLOQUEIO -->
+        <section id="blockedView" class="hidden centered">
+            <div class="card">
+                <h2>Acesso suspenso</h2>
+                <p>
+                    O acesso deste estabelecimento está temporariamente
+                    indisponível. Entre em contato com o administrador.
+                </p>
+            </div>
+        </section>
 
-        <div class="number-grid" id="numberGrid"></div>
+        <!-- ADMIN -->
+        <section id="adminView" class="hidden">
+            <div class="page-heading">
+                <div>
+                    <span class="eyebrow">ADMINISTRAÇÃO</span>
+                    <h1>Painel de Controle</h1>
+                    <p>Estabelecimentos, licenças e relatórios demonstrativos.</p>
+                </div>
+                <span class="pill">Administrador</span>
+            </div>
 
-        <form id="numberForm" class="inline-form">
-          <div>
-            <label>Nome fictício do participante</label>
-            <input id="participantName" required maxlength="80"
-                   placeholder="Ex.: Cliente Teste">
-          </div>
-          <div>
-            <label>Número (1 a 100)</label>
-            <input id="selectedNumber" type="number"
-                   min="1" max="100" required>
-          </div>
-          <button class="btn primary" type="submit">
-            Registrar número
-          </button>
-        </form>
+            <div class="stats">
+                <article class="card stat">
+                    <span>Estabelecimentos</span>
+                    <strong id="totalBares">0</strong>
+                </article>
+                <article class="card stat">
+                    <span>Ativos</span>
+                    <strong id="totalAtivos">0</strong>
+                </article>
+                <article class="card stat">
+                    <span>Arrecadação</span>
+                    <strong id="totalArrecadacao">R$ 0,00</strong>
+                </article>
+                <article class="card stat">
+                    <span>Comissão</span>
+                    <strong id="totalComissao">R$ 0,00</strong>
+                </article>
+            </div>
 
-        <div class="round-summary">
-          <p>Registrados: <b id="roundCount">0</b></p>
-          <p>Total fictício: <b id="roundRevenue">R$ 0,00</b></p>
-          <p>Prêmio ilustrativo: <b id="roundPrize">R$ 0,00</b></p>
-          <p>Comissão ilustrativa: <b id="roundFee">R$ 0,00</b></p>
-        </div>
+            <div class="card">
+                <h2>Cadastrar estabelecimento</h2>
+                <p class="muted">
+                    Crie primeiro a conta no Firebase Authentication e informe
+                    aqui o UID do usuário.
+                </p>
+                <form id="barForm" class="form-grid">
+                    <div>
+                        <label>Nome do estabelecimento</label>
+                        <input id="barName" required placeholder="Bar Central">
+                    </div>
+                    <div>
+                        <label>UID do Firebase Authentication</label>
+                        <input id="barUid" required placeholder="UID do usuário">
+                    </div>
+                    <button class="btn primary" type="submit">
+                        Cadastrar bar
+                    </button>
+                </form>
+            </div>
 
-        <div id="roundResult" class="result"></div>
+            <div class="card">
+                <h2>Estabelecimentos cadastrados</h2>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Estabelecimento</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="barsTable"></tbody>
+                    </table>
+                </div>
+            </div>
 
-        <button id="drawButton" class="btn primary full">
-          Simular resultado da rodada
-        </button>
-      </section>
-    </section>
+            <div class="card">
+                <h2>Histórico de rodadas</h2>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bar</th>
+                                <th>Rodada</th>
+                                <th>Status</th>
+                                <th>Vendidos (demo)</th>
+                                <th>Arrecadação</th>
+                                <th>Comissão</th>
+                                <th>Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminRoundsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
-  </main>
+        <!-- PAINEL DO BAR -->
+        <section id="barView" class="hidden">
+            <div class="page-heading">
+                <div>
+                    <span class="eyebrow">ESTABELECIMENTO</span>
+                    <h1 id="barTitle">Meu estabelecimento</h1>
+                    <p>Gerencie suas rodadas de demonstração.</p>
+                </div>
+                <span class="pill">Modo demonstração</span>
+            </div>
 
-  <div id="toast" class="toast hidden" role="status"></div>
+            <div class="stats">
+                <article class="card stat">
+                    <span>Rodadas</span>
+                    <strong id="barTotalRounds">0</strong>
+                </article>
+                <article class="card stat">
+                    <span>Números registrados</span>
+                    <strong id="barNumbers">0</strong>
+                </article>
+                <article class="card stat">
+                    <span>Total</span>
+                    <strong id="barRevenue">R$ 0,00</strong>
+                </article>
+                <article class="card stat">
+                    <span>Comissão</span>
+                    <strong id="barCommission">R$ 0,00</strong>
+                </article>
+            </div>
 
-  <script type="module" src="./app.js"></script>
+            <div class="card">
+                <h2>Criar rodada demonstrativa</h2>
+                <form id="roundForm" class="form-grid">
+                    <div>
+                        <label>Nome da rodada</label>
+                        <input id="roundName" required placeholder="Rodada 01" maxlength="60">
+                    </div>
+                    <div>
+                        <label>Valor fictício por número (R$)</label>
+                        <input id="roundPrice" type="number" min="0.01" max="1000" step="0.01" required value="5">
+                    </div>
+                    <button class="btn primary" type="submit">
+                        Criar rodada
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <h2>Rodadas cadastradas</h2>
+                </div>
+                <div id="roundsList" class="rounds-list"></div>
+            </div>
+
+            <section id="roundDetail" class="card hidden">
+                <div class="section-header">
+                    <div>
+                        <span class="eyebrow">RODADA DEMONSTRATIVA</span>
+                        <h2 id="selectedRoundTitle"></h2>
+                    </div>
+                    <button id="closeDetail" class="btn secondary">
+                        Fechar
+                    </button>
+                </div>
+
+                <div class="number-grid" id="numberGrid"></div>
+
+
+                <form id="numberForm" class="inline-form">
+                    <div>
+                        <label>Nome fictício do participante</label>
+                        <input id="participantName" required maxlength="80" placeholder="Ex.: Cliente Teste">
+                    </div>
+
+                    <div>
+                        <label>Números selecionados</label>
+                        <div id="selectedNumbersInfo" class="selection-info">
+                            Nenhum número selecionado
+                        </div>
+                        <p class="muted">
+                            Clique nos números livres acima. Máximo de 20 por registro.
+                        </p>
+                    </div>
+
+                    <button class="btn primary" type="submit">
+                        Registrar selecionados
+                    </button>
+                </form>
+
+                <div class="selection-footer">
+                    <span id="selectionCount">0 números selecionados</span>
+                    <strong id="selectionTotal">R$ 0,00</strong>
+                    <button type="button" id="clearSelection" class="btn secondary">
+                        Limpar seleção
+                    </button>
+                </div>
+
+
+                <div class="round-summary">
+                    <p>Registrados: <b id="roundCount">0</b></p>
+                    <p>Total fictício: <b id="roundRevenue">R$ 0,00</b></p>
+                    <p>Prêmio ilustrativo: <b id="roundPrize">R$ 0,00</b></p>
+                    <p>Comissão ilustrativa: <b id="roundFee">R$ 0,00</b></p>
+                </div>
+
+                <div id="roundResult" class="result"></div>
+
+                <button id="drawButton" class="btn primary full">
+                    Mostrar o resultado da rodada
+                </button>
+            </section>
+        </section>
+
+    </main>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+
+    <script type="module" src="./app.js"></script>
 </body>
+
 </html>

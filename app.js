@@ -62,6 +62,27 @@ let user = null;
 let currentBar = null;
 let rounds = [];
 let selectedRoundId = null;
+
+let selectedNumbers = new Set();
+const MAX_SELECTION = 20;
+
+function updateSelection() {
+  const round = rounds.find(r => r.id === selectedRoundId);
+  const price = round?.precoCentavos || 0;
+
+  const numbers = [...selectedNumbers].sort((a, b) => a - b);
+
+  $("selectedNumbersInfo").textContent = numbers.length
+    ? numbers.map(n => String(n).padStart(2, "0")).join(", ")
+    : "Nenhum número selecionado";
+
+  $("selectionCount").textContent =
+    `${numbers.length} número(s) selecionado(s)`;
+
+  $("selectionTotal").textContent =
+    money(numbers.length * price);
+}
+
 let unsubscribeBar = null;
 let unsubscribeRounds = null;
 let unsubscribeAdmin = null;
@@ -445,13 +466,87 @@ function renderRoundDetail() {
   }
 
   const numeros = round.numeros || [];
+  const occupied = new Set(numeros.map(n => n.numero));
+
+for (const n of selectedNumbers) {
+  if (occupied.has(n) || round.status !== "aberta") {
+    selectedNumbers.delete(n);
+  }
+}
   const used = new Map(numeros.map(n => [n.numero, n.nome]));
   const revenue = numeros.length * round.precoCentavos;
   const closed = round.status === "encerrada";
 
   $("selectedRoundTitle").textContent = round.nome;
 
-  $("numberGrid").innerHTML =
+
+$("numberGrid").innerHTML =
+  Array.from({ length: 100 }, (_, index) => {
+    const n = index + 1;
+    const taken = used.has(n);
+    const chosen = selectedNumbers.has(n);
+
+    return `
+      <button
+        type="button"
+        class="number ${taken ? "taken" : ""} ${chosen ? "chosen" : ""}"
+        data-number="${n}"
+        ${taken || closed ? "disabled" : ""}
+        title="${taken ? safe(used.get(n)) : "Disponível"}"
+      >
+        ${String(n).padStart(2, "0")}
+      </button>
+    `;
+  }).join("");
+```
+
+No final da função `renderRoundDetail()`, adicione:
+
+```javascript
+updateSelection();
+```
+
+### C. Substituir o evento de clique na grade
+
+Localize o evento atual:
+
+```javascript
+$("numberGrid").addEventListener("click", event => {
+```
+
+Substitua o evento inteiro por:
+
+<CodeBlock language="javascript" editable>
+$("numberGrid").addEventListener("click", event => {
+  const button = event.target.closest("[data-number]");
+  if (!button || button.disabled) return;
+
+  const numero = Number(button.dataset.number);
+
+  if (selectedNumbers.has(numero)) {
+    selectedNumbers.delete(numero);
+  } else {
+    if (selectedNumbers.size >= MAX_SELECTION) {
+      toast(`Selecione no máximo ${MAX_SELECTION} números.`);
+      return;
+    }
+    selectedNumbers.add(numero);
+  }
+
+  button.classList.toggle(
+    "chosen",
+    selectedNumbers.has(numero)
+  );
+
+  updateSelection();
+  $("participantName").focus();
+});
+
+$("clearSelection").addEventListener("click", () => {
+  selectedNumbers.clear();
+  renderRoundDetail();
+});
+
     Array.from({ length: 100 }, (_, index) => {
       const n = index + 1;
       const taken = used.has(n);
@@ -554,7 +649,7 @@ $("numberForm").addEventListener("submit", async event => {
 $("drawButton").addEventListener("click", async () => {
   if (!selectedRoundId) return;
 
-  if (!confirm("Encerrar e simular o resultado desta rodada?")) {
+  if (!confirm("Encerrar e mostrar o resultado desta rodada?")) {
     return;
   }
 
@@ -607,7 +702,7 @@ $("drawButton").addEventListener("click", async () => {
       });
     });
 
-    toast("Simulação concluída.");
+    toast("Jogo concluído.");
   } catch (error) {
     handleError(error);
   }
