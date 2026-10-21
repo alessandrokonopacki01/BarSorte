@@ -718,7 +718,85 @@ function renderBarStats() {
 // =============================================
 // EXIBIR DETALHES DA RODADA
 // =============================================
+function renderWinner(round) {
+  const panel = $("winnerPanel");
 
+  const closed =
+    round.status === "encerrada" &&
+    Number.isInteger(round.resultado);
+
+  if (!closed) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  const winner = (round.numeros || []).find(
+  item => Number(item.numero) === Number(round.resultado)
+);
+
+  if (!winner) {
+    panel.classList.add("hidden");
+    console.warn(
+      "Participante não encontrado para o resultado:",
+      round.resultado
+    );
+    return;
+  }
+
+  const whatsapp = String(
+    winner.whatsapp || ""
+  ).replace(/\D/g, "");
+
+  const pix = String(winner.pix || "").trim();
+
+  const whatsappValido =
+    whatsapp.length === 10 ||
+    whatsapp.length === 11;
+
+  const receita =
+    (round.numeros || []).length *
+    round.precoCentavos;
+
+  const premio =
+    Math.round(receita * 0.50);
+
+  // Exibição segura sem inserir dados do usuário
+  // diretamente como HTML.
+  $("winnerNumber").textContent =
+    String(winner.numero).padStart(3, "0");
+
+  $("winnerName").textContent =
+    winner.nome || "Não cadastrado";
+
+  $("winnerWhatsapp").textContent =
+    whatsappValido
+      ? whatsapp.replace(
+          /^(\d{2})(\d{4,5})(\d{4})$/,
+          "($1) $2-$3"
+        )
+      : "Não cadastrado";
+
+  $("winnerPix").textContent =
+    pix || "Não cadastrado";
+
+  $("winnerPrize").textContent =
+    money(premio);
+
+  $("btnWinnerWhatsapp").disabled =
+    !whatsappValido;
+
+  $("btnCopyPix").disabled =
+    !pix;
+
+  // Guarda os dados nos próprios botões
+  // para as ações de clique.
+  $("btnWinnerWhatsapp").dataset.phone =
+    whatsappValido ? whatsapp : "";
+
+  $("btnCopyPix").dataset.pix = pix;
+
+  panel.classList.remove("hidden");
+}
 function renderRoundDetail() {
   const round = rounds.find(
     r => r.id === selectedRoundId
@@ -1008,86 +1086,6 @@ const novos = numerosEscolhidos.map(numero => ({
       selectedNumbers.clear();
 
       $("numberForm").reset();
-
-function renderWinner(round) {
-  const panel = $("winnerPanel");
-
-  const closed =
-    round.status === "encerrada" &&
-    Number.isInteger(round.resultado);
-
-  if (!closed) {
-    panel.classList.add("hidden");
-    return;
-  }
-
-  const winner = (round.numeros || []).find(
-    item => item.numero === round.resultado
-  );
-
-  if (!winner) {
-    panel.classList.add("hidden");
-    console.warn(
-      "Participante não encontrado para o resultado:",
-      round.resultado
-    );
-    return;
-  }
-
-  const whatsapp = String(
-    winner.whatsapp || ""
-  ).replace(/\D/g, "");
-
-  const pix = String(winner.pix || "").trim();
-
-  const whatsappValido =
-    whatsapp.length === 10 ||
-    whatsapp.length === 11;
-
-  const receita =
-    (round.numeros || []).length *
-    round.precoCentavos;
-
-  const premio =
-    Math.round(receita * 0.50);
-
-  // Exibição segura sem inserir dados do usuário
-  // diretamente como HTML.
-  $("winnerNumber").textContent =
-    String(winner.numero).padStart(3, "0");
-
-  $("winnerName").textContent =
-    winner.nome || "Não cadastrado";
-
-  $("winnerWhatsapp").textContent =
-    whatsappValido
-      ? whatsapp.replace(
-          /^(\d{2})(\d{4,5})(\d{4})$/,
-          "($1) $2-$3"
-        )
-      : "Não cadastrado";
-
-  $("winnerPix").textContent =
-    pix || "Não cadastrado";
-
-  $("winnerPrize").textContent =
-    money(premio);
-
-  $("btnWinnerWhatsapp").disabled =
-    !whatsappValido;
-
-  $("btnCopyPix").disabled =
-    !pix;
-
-  // Guarda os dados nos próprios botões
-  // para as ações de clique.
-  $("btnWinnerWhatsapp").dataset.phone =
-    whatsappValido ? whatsapp : "";
-
-  $("btnCopyPix").dataset.pix = pix;
-
-  panel.classList.remove("hidden");
-}
 
       renderRoundDetail();
 
