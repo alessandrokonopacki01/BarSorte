@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>BarSorte TV</title>
+  <link rel="stylesheet" href="./tela.css">
+</head>
+
+<body>
+
+  <header class="tv-header">
+    <div class="brand">
+      <div class="logo">★</div>
+      <div>
+        <h1>BarSorte</h1>
+        <span>PAINEL DE EXIBIÇÃO</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <span id="connection" class="status">
+        Conectando...
+      </span>
+
+      <button id="fullscreen" type="button">
+        ⛶ Tela cheia
+      </button>
+    </div>
+  </header>
+
+  <main class="tv-main">
+
+    <section class="round-title">
+      <p>RODADA DEMONSTRATIVA</p>
+      <h2 id="roundName">Carregando...</h2>
+    </section>
+
+    <section class="summary">
+
+      <article class="stat">
+        <span>NÚMEROS REGISTRADOS</span>
+        <strong id="soldCount">0</strong>
+      </article>
+
+      <article class="stat">
+        <span>NÚMEROS DISPONÍVEIS</span>
+        <strong id="freeCount">100</strong>
+      </article>
+
+      <article class="stat">
+        <span>TOTAL FICTÍCIO</span>
+        <strong id="revenue">R$ 0,00</strong>
+      </article>
+
+      <article class="stat">
+        <span>PRÊMIO ILUSTRATIVO</span>
+        <strong id="prize">R$ 0,00</strong>
+      </article>
+
+    </section>
+
+    <section class="board">
+
+      <div class="board-top">
+        <h3>Números da rodada</h3>
+
+        <div class="legend">
+          <span><i class="dot available"></i>Disponível</span>
+          <span><i class="dot taken"></i>Registrado</span>
+        </div>
+      </div>
+
+      <div id="numbersGrid" class="numbers-grid"></div>
+
+    </section>
+
+    <section id="winnerOverlay"
+             class="winner-overlay hidden"
+             aria-live="polite">
+
+      <div class="winner-card">
+        <div class="trophy">🏆</div>
+        <p>RESULTADO DA RODADA</p>
+        <span>NÚMERO SORTEADO</span>
+
+        <strong id="winnerNumber">---</strong>
+
+        <h2>Rodada encerrada!</h2>
+        <p>Resultado demonstrativo</p>
+
+        <button id="closeWinner" type="button">
+          Visualizar painel
+        </button>
+      </div>
+
+    </section>
+
+    <section id="messageBox" class="message-box hidden">
+      <h2 id="messageTitle">Aviso</h2>
+      <p id="messageText"></p>
+    </section>
+
+  </main>
+
+  <footer class="tv-footer">
+    <span>BarSorte TV</span>
+    <span id="roundStatus">Aguardando rodada</span>
+    <span>Modo demonstração</span>
+  </footer>
+
+  <script type="module" src="./tela.js"></script>
+
+</body>
+</html>
