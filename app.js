@@ -428,6 +428,7 @@ $("roundsList").addEventListener("click", event => {
   if (!button) return;
 
   selectedRoundId = button.dataset.round;
+  selectedNumbers.clear();
   $("roundDetail").classList.remove("hidden");
   renderRoundDetail();
   $("roundDetail").scrollIntoView({ behavior: "smooth" });
