@@ -24,7 +24,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
 // =============================================
-// CONFIGURAÇÃO
+// CONFIGURAÇÃO DO FIREBASE
 // =============================================
 
 const firebaseConfig = {
@@ -37,18 +37,22 @@ const firebaseConfig = {
   measurementId: "G-556D60HG9R"
 };
 
-// Precisa ser o MESMO UID configurado nas regras.
 const ADMIN_UID = "4gUdxoqAaLaMfZ9vjafSbY5rfWB3";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// =============================================
+// FUNÇÕES AUXILIARES
+// =============================================
+
 const $ = id => document.getElementById(id);
 
 const money = cents =>
   (cents / 100).toLocaleString("pt-BR", {
-    style: "currency", currency: "BRL"
+    style: "currency",
+    currency: "BRL"
   });
 
 const safe = value => String(value ?? "")
@@ -58,23 +62,66 @@ const safe = value => String(value ?? "")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#39;");
 
+function show(view) {
+  ["loginView", "blockedView", "adminView", "barView"]
+    .forEach(id => $(id).classList.add("hidden"));
+
+  $(view).classList.remove("hidden");
+}
+
+function toast(message) {
+  $("toast").textContent = message;
+  $("toast").classList.remove("hidden");
+
+  setTimeout(() => {
+    $("toast").classList.add("hidden");
+  }, 3500);
+}
+
+function handleError(error) {
+  console.error(error);
+  toast("Erro: " + (error.message || error.code));
+}
+
+// =============================================
+// VARIÁVEIS GLOBAIS
+// =============================================
+
 let user = null;
 let currentBar = null;
 let rounds = [];
 let selectedRoundId = null;
 
 let selectedNumbers = new Set();
+
 const MAX_SELECTION = 20;
 
+let unsubscribeBar = null;
+let unsubscribeRounds = null;
+let unsubscribeAdmin = null;
+
+let authVersion = 0;
+
+// =============================================
+// SELEÇÃO MÚLTIPLA
+// =============================================
+
 function updateSelection() {
-  const round = rounds.find(r => r.id === selectedRoundId);
+  const round = rounds.find(
+    r => r.id === selectedRoundId
+  );
+
   const price = round?.precoCentavos || 0;
 
-  const numbers = [...selectedNumbers].sort((a, b) => a - b);
+  const numbers = [...selectedNumbers]
+    .sort((a, b) => a - b);
 
-  $("selectedNumbersInfo").textContent = numbers.length
-    ? numbers.map(n => String(n).padStart(2, "0")).join(", ")
-    : "Nenhum número selecionado";
+  $("selectedNumbersInfo").textContent =
+    numbers.length
+      ? numbers.map(n =>
+          String(n).padStart(2, "0")
+        ).join(", ")
+      : "Nenhum número selecionado";
 
   $("selectionCount").textContent =
     `${numbers.length} número(s) selecionado(s)`;
@@ -83,35 +130,26 @@ function updateSelection() {
     money(numbers.length * price);
 }
 
-let unsubscribeBar = null;
-let unsubscribeRounds = null;
-let unsubscribeAdmin = null;
-let authVersion = 0;
-
-function show(view) {
-  ["loginView", "blockedView", "adminView", "barView"]
-    .forEach(id => $(id).classList.add("hidden"));
-  $(view).classList.remove("hidden");
-}
-
-function toast(message) {
-  $("toast").textContent = message;
-  $("toast").classList.remove("hidden");
-  setTimeout(() => $("toast").classList.add("hidden"), 3500);
-}
-
-function handleError(error) {
-  console.error(error);
-  toast("Erro: " + (error.code || error.message));
-}
-
 function clearListeners() {
   unsubscribeBar?.();
   unsubscribeRounds?.();
   unsubscribeAdmin?.();
+
   unsubscribeBar = null;
   unsubscribeRounds = null;
   unsubscribeAdmin = null;
+}
+
+function clearBarRounds() {
+  unsubscribeRounds?.();
+  unsubscribeRounds = null;
+
+  rounds = [];
+  selectedRoundId = null;
+
+  selectedNumbers.clear();
+
+  $("roundDetail").classList.add("hidden");
 }
 
 // =============================================
@@ -120,6 +158,7 @@ function clearListeners() {
 
 $("loginForm").addEventListener("submit", async event => {
   event.preventDefault();
+
   $("loginError").textContent = "";
 
   try {
@@ -130,28 +169,46 @@ $("loginForm").addEventListener("submit", async event => {
     );
   } catch (error) {
     console.error(error);
+
     $("loginError").textContent =
       "Não foi possível entrar. Confira seu e-mail e senha.";
   }
 });
 
-$("btnLogout").addEventListener("click", () => signOut(auth));
+$("btnLogout").addEventListener("click", () => {
+  signOut(auth);
+});
 
-onAuthStateChanged(auth, async loggedUser => {
+// =============================================
+// IDENTIFICAR USUÁRIO
+// =============================================
+
+onAuthStateChanged(auth, loggedUser => {
   const version = ++authVersion;
+
   clearListeners();
+
   user = loggedUser;
   currentBar = null;
+
   rounds = [];
   selectedRoundId = null;
+  selectedNumbers.clear();
 
-  $("btnLogout").classList.toggle("hidden", !user);
-  $("userLabel").textContent = user?.email || "";
+  $("btnLogout").classList.toggle(
+    "hidden",
+    !user
+  );
+
+  $("userLabel").textContent =
+    user?.email || "";
 
   if (!user) {
     show("loginView");
     return;
   }
+
+  // ADMINISTRADOR
 
   if (user.uid === ADMIN_UID) {
     show("adminView");
@@ -159,41 +216,51 @@ onAuthStateChanged(auth, async loggedUser => {
     return;
   }
 
-  const barRef = doc(db, "bares", user.uid);
+  // ESTABELECIMENTO
 
-  unsubscribeBar = onSnapshot(barRef, snapshot => {
-    if (version !== authVersion) return;
+  const barRef = doc(
+    db,
+    "bares",
+    user.uid
+  );
 
-    if (!snapshot.exists()) {
-      show("blockedView");
-      clearBarRounds();
-      return;
-    }
+  unsubscribeBar = onSnapshot(
+    barRef,
+    snapshot => {
+      if (version !== authVersion) return;
 
-    currentBar = { id: snapshot.id, ...snapshot.data() };
+      if (!snapshot.exists()) {
+        show("blockedView");
+        clearBarRounds();
+        return;
+      }
 
-    if (currentBar.status !== "ativo") {
-      show("blockedView");
-      clearBarRounds();
-      return;
-    }
+      currentBar = {
+        id: snapshot.id,
+        ...snapshot.data()
+      };
 
-    $("barTitle").textContent = currentBar.nome;
-    show("barView");
-    if (!unsubscribeRounds) startBarRounds();
-  }, handleError);
+      if (currentBar.status !== "ativo") {
+        show("blockedView");
+        clearBarRounds();
+        return;
+      }
+
+      $("barTitle").textContent =
+        currentBar.nome;
+
+      show("barView");
+
+      if (!unsubscribeRounds) {
+        startBarRounds();
+      }
+    },
+    handleError
+  );
 });
 
-function clearBarRounds() {
-  unsubscribeRounds?.();
-  unsubscribeRounds = null;
-  rounds = [];
-  selectedRoundId = null;
-  $("roundDetail").classList.add("hidden");
-}
-
 // =============================================
-// ADMINISTRAÇÃO
+// PAINEL ADMINISTRATIVO
 // =============================================
 
 let adminBars = [];
@@ -203,9 +270,12 @@ function startAdmin() {
     collection(db, "bares"),
     snapshot => {
       adminBars = snapshot.docs.map(d => ({
-        id: d.id, ...d.data()
+        id: d.id,
+        ...d.data()
       }));
+
       renderAdminBars();
+
       refreshAdminReports().catch(handleError);
     },
     handleError
@@ -213,10 +283,13 @@ function startAdmin() {
 }
 
 function renderAdminBars() {
-  $("totalBares").textContent = adminBars.length;
-  $("totalAtivos").textContent = adminBars.filter(
-    bar => bar.status === "ativo"
-  ).length;
+  $("totalBares").textContent =
+    adminBars.length;
+
+  $("totalAtivos").textContent =
+    adminBars.filter(
+      bar => bar.status === "ativo"
+    ).length;
 
   $("barsTable").innerHTML = adminBars.map(bar => `
     <tr>
@@ -224,92 +297,149 @@ function renderAdminBars() {
         <b>${safe(bar.nome)}</b><br>
         <small>${safe(bar.id)}</small>
       </td>
+
       <td>
-        <span class="tag ${bar.status === "ativo" ?
-          "active" : "blocked"}">
-          ${bar.status === "ativo" ? "Ativo" : "Bloqueado"}
+        <span class="tag ${
+          bar.status === "ativo"
+            ? "active"
+            : "blocked"
+        }">
+          ${
+            bar.status === "ativo"
+              ? "Ativo"
+              : "Bloqueado"
+          }
         </span>
       </td>
+
       <td>
-        <button class="btn ${bar.status === "ativo" ?
-          "danger" : "success"}"
-          data-toggle="${safe(bar.id)}">
-          ${bar.status === "ativo" ? "Bloquear" : "Liberar"}
+        <button
+          class="btn ${
+            bar.status === "ativo"
+              ? "danger"
+              : "success"
+          }"
+          data-toggle="${safe(bar.id)}"
+        >
+          ${
+            bar.status === "ativo"
+              ? "Bloquear"
+              : "Liberar"
+          }
         </button>
       </td>
     </tr>
   `).join("");
 }
 
-$("barsTable").addEventListener("click", async event => {
-  const button = event.target.closest("[data-toggle]");
-  if (!button) return;
+// =============================================
+// BLOQUEAR E DESBLOQUEAR
+// =============================================
 
-  const bar = adminBars.find(b => b.id === button.dataset.toggle);
-  if (!bar) return;
-
-  const novoStatus = bar.status === "ativo" ?
-    "bloqueado" : "ativo";
-
-  if (!confirm(`Alterar ${bar.nome} para ${novoStatus}?`)) return;
-
-  try {
-    await updateDoc(doc(db, "bares", bar.id), {
-      status: novoStatus
-    });
-    toast("Status atualizado.");
-  } catch (error) {
-    handleError(error);
-  }
-});
-
-$("barForm").addEventListener("submit", async event => {
-  event.preventDefault();
-
-  const nome = $("barName").value.trim();
-  const uid = $("barUid").value.trim();
-
-  if (!nome || !uid) return;
-
-  try {
-    const reference = doc(db, "bares", uid);
-
-    if ((await getDoc(reference)).exists()) {
-      toast("Este UID já está cadastrado.");
-      return;
-    }
-
-    await setDoc(reference, {
-      nome,
-      status: "ativo",
-      criadoEm: serverTimestamp()
-    });
-
-    $("barForm").reset();
-    toast("Estabelecimento cadastrado.");
-  } catch (error) {
-    handleError(error);
-  }
-});
-
-async function refreshAdminReports() {
-  let allRounds = [];
-
-  // Busca as rodadas de cada estabelecimento cadastrado.
-  // Versão simples, indicada para poucos estabelecimentos.
-  const results = await Promise.all(adminBars.map(async bar => {
-    const snapshot = await getDocs(
-      collection(db, "bares", bar.id, "rodadas")
+$("barsTable").addEventListener(
+  "click",
+  async event => {
+    const button = event.target.closest(
+      "[data-toggle]"
     );
 
-    return snapshot.docs.map(d => ({
-      id: d.id,
-      barName: bar.nome,
-      ...d.data()
-    }));
-  }));
+    if (!button) return;
 
-  allRounds = results.flat();
+    const bar = adminBars.find(
+      b => b.id === button.dataset.toggle
+    );
+
+    if (!bar) return;
+
+    const novoStatus =
+      bar.status === "ativo"
+        ? "bloqueado"
+        : "ativo";
+
+    if (!confirm(
+      `Alterar ${bar.nome} para ${novoStatus}?`
+    )) return;
+
+    try {
+      await updateDoc(
+        doc(db, "bares", bar.id),
+        { status: novoStatus }
+      );
+
+      toast("Status atualizado.");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+);
+
+// =============================================
+// CADASTRAR ESTABELECIMENTO
+// =============================================
+
+$("barForm").addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
+
+    const nome = $("barName").value.trim();
+    const uid = $("barUid").value.trim();
+
+    if (!nome || !uid) return;
+
+    try {
+      const reference = doc(
+        db,
+        "bares",
+        uid
+      );
+
+      if ((await getDoc(reference)).exists()) {
+        toast("Este UID já está cadastrado.");
+        return;
+      }
+
+      await setDoc(reference, {
+        nome,
+        status: "ativo",
+        criadoEm: serverTimestamp()
+      });
+
+      $("barForm").reset();
+
+      toast("Estabelecimento cadastrado.");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+);
+
+// =============================================
+// RELATÓRIOS ADMINISTRATIVOS
+// =============================================
+
+async function refreshAdminReports() {
+  const results = await Promise.all(
+    adminBars.map(async bar => {
+      const snapshot = await getDocs(
+        collection(
+          db,
+          "bares",
+          bar.id,
+          "rodadas"
+        )
+      );
+
+      return snapshot.docs.map(d => ({
+        id: d.id,
+        barName: bar.nome,
+        ...d.data()
+      }));
+    })
+  );
+
+  const allRounds = results.flat();
+
   allRounds.sort((a, b) =>
     (b.criadoEm?.seconds || 0) -
     (a.criadoEm?.seconds || 0)
@@ -318,422 +448,668 @@ async function refreshAdminReports() {
   let total = 0;
   let commission = 0;
 
-  $("adminRoundsTable").innerHTML = allRounds.map(round => {
-    const count = (round.numeros || []).length;
-    const revenue = count * round.precoCentavos;
-    const fee = Math.round(revenue * 0.05);
-    total += revenue;
-    commission += fee;
+  $("adminRoundsTable").innerHTML =
+    allRounds.map(round => {
+      const count =
+        (round.numeros || []).length;
 
-    return `
-      <tr>
-        <td>${safe(round.barName)}</td>
-        <td>${safe(round.nome)}</td>
-        <td>${round.status === "encerrada" ?
-          "Encerrada" : "Aberta"}</td>
-        <td>${count}</td>
-        <td>${money(revenue)}</td>
-        <td>${money(fee)}</td>
-        <td>${round.resultado ?? "—"}</td>
-      </tr>`;
-  }).join("");
+      const revenue =
+        count * round.precoCentavos;
 
-  $("totalArrecadacao").textContent = money(total);
-  $("totalComissao").textContent = money(commission);
+      const fee =
+        Math.round(revenue * 0.05);
+
+      total += revenue;
+      commission += fee;
+
+      return `
+        <tr>
+          <td>${safe(round.barName)}</td>
+          <td>${safe(round.nome)}</td>
+
+          <td>
+            ${
+              round.status === "encerrada"
+                ? "Encerrada"
+                : "Aberta"
+            }
+          </td>
+
+          <td>${count}</td>
+          <td>${money(revenue)}</td>
+          <td>${money(fee)}</td>
+          <td>${round.resultado ?? "—"}</td>
+        </tr>
+      `;
+    }).join("");
+
+  $("totalArrecadacao").textContent =
+    money(total);
+
+  $("totalComissao").textContent =
+    money(commission);
 }
 
 // =============================================
-// PAINEL DO ESTABELECIMENTO
+// REFERÊNCIAS DAS RODADAS
 // =============================================
 
 function roundsCollection() {
-  return collection(db, "bares", user.uid, "rodadas");
+  return collection(
+    db,
+    "bares",
+    user.uid,
+    "rodadas"
+  );
 }
 
 function roundReference(id) {
-  return doc(db, "bares", user.uid, "rodadas", id);
+  return doc(
+    db,
+    "bares",
+    user.uid,
+    "rodadas",
+    id
+  );
 }
+
+// =============================================
+// ATUALIZAÇÃO DAS RODADAS
+// =============================================
 
 function startBarRounds() {
-  unsubscribeRounds = onSnapshot(roundsCollection(), snapshot => {
-    rounds = snapshot.docs.map(d => ({
-      id: d.id, ...d.data()
-    }));
+  unsubscribeRounds = onSnapshot(
+    roundsCollection(),
+    snapshot => {
+      rounds = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
 
-    rounds.sort((a, b) =>
-      (b.criadoEm?.seconds || 0) -
-      (a.criadoEm?.seconds || 0)
-    );
+      rounds.sort((a, b) =>
+        (b.criadoEm?.seconds || 0) -
+        (a.criadoEm?.seconds || 0)
+      );
 
-    renderRounds();
-    renderBarStats();
+      renderRounds();
+      renderBarStats();
 
-    if (selectedRoundId) renderRoundDetail();
-  }, handleError);
+      if (selectedRoundId) {
+        renderRoundDetail();
+      }
+    },
+    handleError
+  );
 }
 
-$("roundForm").addEventListener("submit", async event => {
-  event.preventDefault();
+// =============================================
+// CRIAR RODADA DEMONSTRATIVA
+// =============================================
 
-  const nome = $("roundName").value.trim();
-  const preco = Number($("roundPrice").value);
-  const precoCentavos = Math.round(preco * 100);
+$("roundForm").addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
 
-  if (!nome || !Number.isFinite(preco) ||
-      preco <= 0 || preco > 1000) {
-    toast("Informe um nome e valor fictício válido.");
-    return;
+    const nome =
+      $("roundName").value.trim();
+
+    const preco =
+      Number($("roundPrice").value);
+
+    const precoCentavos =
+      Math.round(preco * 100);
+
+    if (
+      !nome ||
+      !Number.isFinite(preco) ||
+      preco <= 0 ||
+      preco > 1000
+    ) {
+      toast("Informe um nome e valor fictício válido.");
+      return;
+    }
+
+    try {
+      await addDoc(
+        roundsCollection(),
+        {
+          nome,
+          precoCentavos,
+          numeros: [],
+          status: "aberta",
+          resultado: null,
+          criadoEm: serverTimestamp()
+        }
+      );
+
+      $("roundForm").reset();
+
+      toast("Rodada demonstrativa criada.");
+    } catch (error) {
+      handleError(error);
+    }
   }
+);
 
-  try {
-    // A regra do Firestore confere se o bar está ativo.
-    await addDoc(roundsCollection(), {
-      nome,
-      precoCentavos,
-      numeros: [],
-      status: "aberta",
-      resultado: null,
-      criadoEm: serverTimestamp()
-    });
-
-    $("roundForm").reset();
-    toast("Rodada demonstrativa criada.");
-  } catch (error) {
-    handleError(error);
-  }
-});
+// =============================================
+// LISTAGEM DAS RODADAS
+// =============================================
 
 function renderRounds() {
-  $("roundsList").innerHTML = rounds.length ?
-    rounds.map(round => `
-      <div class="round-item">
-        <div>
-          <h3>${safe(round.nome)}</h3>
-          <p>
-            ${round.numeros?.length || 0}/100 registrados •
-            ${round.status === "aberta" ? "Aberta" : "Encerrada"}
-          </p>
+  $("roundsList").innerHTML =
+    rounds.length
+      ? rounds.map(round => `
+        <div class="round-item">
+          <div>
+            <h3>${safe(round.nome)}</h3>
+
+            <p>
+              ${round.numeros?.length || 0}/100 registrados •
+              ${
+                round.status === "aberta"
+                  ? "Aberta"
+                  : "Encerrada"
+              }
+            </p>
+          </div>
+
+          <button
+            class="btn secondary"
+            data-round="${safe(round.id)}"
+          >
+            Visualizar
+          </button>
         </div>
-        <button class="btn secondary"
-          data-round="${safe(round.id)}">
-          Visualizar
-        </button>
-      </div>
-    `).join("") :
-    '<p>Nenhuma rodada criada.</p>';
+      `).join("")
+      : "<p>Nenhuma rodada criada.</p>";
 }
 
-$("roundsList").addEventListener("click", event => {
-  const button = event.target.closest("[data-round]");
-  if (!button) return;
+// =============================================
+// ABRIR RODADA
+// =============================================
 
-  selectedRoundId = button.dataset.round;
-  selectedNumbers.clear();
-  $("roundDetail").classList.remove("hidden");
-  renderRoundDetail();
-  $("roundDetail").scrollIntoView({ behavior: "smooth" });
-});
+$("roundsList").addEventListener(
+  "click",
+  event => {
+    const button = event.target.closest(
+      "[data-round]"
+    );
 
-$("closeDetail").addEventListener("click", () => {
-  selectedRoundId = null;
-  $("roundDetail").classList.add("hidden");
-});
+    if (!button) return;
+
+    selectedRoundId =
+      button.dataset.round;
+
+    selectedNumbers.clear();
+
+    $("roundDetail").classList.remove(
+      "hidden"
+    );
+
+    renderRoundDetail();
+
+    $("roundDetail").scrollIntoView({
+      behavior: "smooth"
+    });
+  }
+);
+
+// =============================================
+// FECHAR RODADA
+// =============================================
+
+$("closeDetail").addEventListener(
+  "click",
+  () => {
+    selectedRoundId = null;
+
+    selectedNumbers.clear();
+
+    $("roundDetail").classList.add(
+      "hidden"
+    );
+  }
+);
+
+// =============================================
+// ESTATÍSTICAS DO BAR
+// =============================================
 
 function renderBarStats() {
   const count = rounds.reduce(
-    (sum, r) => sum + (r.numeros?.length || 0), 0
+    (sum, r) =>
+      sum + (r.numeros?.length || 0),
+    0
   );
 
   const revenue = rounds.reduce(
-    (sum, r) => sum +
-      (r.numeros?.length || 0) * r.precoCentavos, 0
+    (sum, r) =>
+      sum +
+      (r.numeros?.length || 0) *
+      r.precoCentavos,
+    0
   );
 
-  $("barTotalRounds").textContent = rounds.length;
-  $("barNumbers").textContent = count;
-  $("barRevenue").textContent = money(revenue);
-  $("barCommission").textContent = money(
-    rounds.reduce((sum, r) => sum + Math.round(
-      (r.numeros?.length || 0) * r.precoCentavos * 0.05
-    ), 0)
-  );
+  $("barTotalRounds").textContent =
+    rounds.length;
+
+  $("barNumbers").textContent =
+    count;
+
+  $("barRevenue").textContent =
+    money(revenue);
+
+  $("barCommission").textContent =
+    money(
+      rounds.reduce(
+        (sum, r) =>
+          sum +
+          Math.round(
+            (r.numeros?.length || 0) *
+            r.precoCentavos *
+            0.05
+          ),
+        0
+      )
+    );
 }
 
+// =============================================
+// EXIBIR DETALHES DA RODADA
+// =============================================
+
 function renderRoundDetail() {
-  const round = rounds.find(r => r.id === selectedRoundId);
+  const round = rounds.find(
+    r => r.id === selectedRoundId
+  );
+
   if (!round) {
-    $("roundDetail").classList.add("hidden");
+    $("roundDetail").classList.add(
+      "hidden"
+    );
     return;
   }
 
   const numeros = round.numeros || [];
-  const occupied = new Set(numeros.map(n => n.numero));
 
-for (const n of selectedNumbers) {
-  if (occupied.has(n) || round.status !== "aberta") {
-    selectedNumbers.delete(n);
-  }
-}
-  const used = new Map(numeros.map(n => [n.numero, n.nome]));
-  const revenue = numeros.length * round.precoCentavos;
-  const closed = round.status === "encerrada";
-
-  $("selectedRoundTitle").textContent = round.nome;
-
-
-$("numberGrid").innerHTML =
-  Array.from({ length: 100 }, (_, index) => {
-    const n = index + 1;
-    const taken = used.has(n);
-    const chosen = selectedNumbers.has(n);
-
-    return `
-      <button
-        type="button"
-        class="number ${taken ? "taken" : ""} ${chosen ? "chosen" : ""}"
-        data-number="${n}"
-        ${taken || closed ? "disabled" : ""}
-        title="${taken ? safe(used.get(n)) : "Disponível"}"
-      >
-        ${String(n).padStart(2, "0")}
-      </button>
-    `;
-  }).join("");
-```
-
-No final da função `renderRoundDetail()`, adicione:
-
-```javascript
-updateSelection();
-```
-
-### C. Substituir o evento de clique na grade
-
-Localize o evento atual:
-
-```javascript
-$("numberGrid").addEventListener("click", event => {
-```
-
-Substitua o evento inteiro por:
-
-<CodeBlock language="javascript" editable>
-$("numberGrid").addEventListener("click", event => {
-  const button = event.target.closest("[data-number]");
-  if (!button || button.disabled) return;
-
-  const numero = Number(button.dataset.number);
-
-  if (selectedNumbers.has(numero)) {
-    selectedNumbers.delete(numero);
-  } else {
-    if (selectedNumbers.size >= MAX_SELECTION) {
-      toast(`Selecione no máximo ${MAX_SELECTION} números.`);
-      return;
-    }
-    selectedNumbers.add(numero);
-  }
-
-  button.classList.toggle(
-    "chosen",
-    selectedNumbers.has(numero)
+  const used = new Map(
+    numeros.map(n => [
+      n.numero,
+      n.nome
+    ])
   );
+
+  const closed =
+    round.status === "encerrada";
+
+  // Remove da seleção os números
+  // que ficaram ocupados.
+  for (const numero of selectedNumbers) {
+    if (used.has(numero) || closed) {
+      selectedNumbers.delete(numero);
+    }
+  }
+
+  $("selectedRoundTitle").textContent =
+    round.nome;
+
+  // GRADE COM 100 NÚMEROS
+
+  $("numberGrid").innerHTML =
+    Array.from(
+      { length: 100 },
+      (_, index) => {
+        const numero = index + 1;
+
+        const taken =
+          used.has(numero);
+
+        const chosen =
+          selectedNumbers.has(numero);
+
+        return `
+          <button
+            type="button"
+            class="number ${
+              taken ? "taken" : ""
+            } ${
+              chosen ? "chosen" : ""
+            }"
+            data-number="${numero}"
+            ${
+              taken || closed
+                ? "disabled"
+                : ""
+            }
+            title="${
+              taken
+                ? safe(used.get(numero))
+                : "Disponível"
+            }"
+          >
+            ${String(numero).padStart(2, "0")}
+          </button>
+        `;
+      }
+    ).join("");
+
+  const revenue =
+    numeros.length * round.precoCentavos;
+
+  $("roundCount").textContent =
+    numeros.length;
+
+  $("roundRevenue").textContent =
+    money(revenue);
+
+  $("roundPrize").textContent =
+    money(Math.round(revenue * 0.50));
+
+  $("roundFee").textContent =
+    money(Math.round(revenue * 0.05));
+
+  $("numberForm").classList.toggle(
+    "hidden",
+    closed
+  );
+
+  $("drawButton").disabled =
+    closed || numeros.length === 0;
+
+  $("roundResult").textContent =
+    closed
+      ? `Resultado demonstrativo: número ${round.resultado}`
+      : "Rodada aberta";
 
   updateSelection();
-  $("participantName").focus();
-});
-
-$("clearSelection").addEventListener("click", () => {
-  selectedNumbers.clear();
-  renderRoundDetail();
-});
-
-    Array.from({ length: 100 }, (_, index) => {
-      const n = index + 1;
-      const taken = used.has(n);
-
-      return `
-        <button type="button"
-          class="number ${taken ? "taken" : ""}"
-          data-number="${n}"
-          ${taken || closed ? "disabled" : ""}
-          title="${taken ? safe(used.get(n)) : "Disponível"}">
-          ${String(n).padStart(2, "0")}
-        </button>
-      `;
-    }).join("");
-
-  $("roundCount").textContent = numeros.length;
-  $("roundRevenue").textContent = money(revenue);
-  $("roundPrize").textContent = money(
-    Math.round(revenue * 0.50)
-  );
-  $("roundFee").textContent = money(
-    Math.round(revenue * 0.05)
-  );
-
-  $("numberForm").classList.toggle("hidden", closed);
-  $("drawButton").disabled = closed || numeros.length === 0;
-
-  $("roundResult").textContent = closed ?
-    `Resultado demonstrativo: número ${round.resultado}` :
-    "Rodada aberta";
 }
 
-$("numberGrid").addEventListener("click", event => {
-  const button = event.target.closest("[data-number]");
-  if (!button || button.disabled) return;
+// =============================================
+// SELECIONAR VÁRIOS NÚMEROS
+// =============================================
 
-  $("selectedNumber").value = button.dataset.number;
-  $("participantName").focus();
-});
+$("numberGrid").addEventListener(
+  "click",
+  event => {
+    const button = event.target.closest(
+      "[data-number]"
+    );
 
+    if (!button || button.disabled) {
+      return;
+    }
 
-$("numberForm").addEventListener("submit", async event => {
-  event.preventDefault();
+    const numero =
+      Number(button.dataset.number);
 
-  const nome = $("participantName").value.trim();
-  const numerosEscolhidos = [...selectedNumbers]
-    .sort((a, b) => a - b);
+    if (selectedNumbers.has(numero)) {
+      selectedNumbers.delete(numero);
+    } else {
+      if (selectedNumbers.size >= MAX_SELECTION) {
+        toast(
+          `Selecione no máximo ${MAX_SELECTION} números.`
+        );
+        return;
+      }
 
-  if (!nome || nome.length > 80) {
-    toast("Informe o nome do participante.");
-    return;
+      selectedNumbers.add(numero);
+    }
+
+    button.classList.toggle(
+      "chosen",
+      selectedNumbers.has(numero)
+    );
+
+    updateSelection();
   }
+);
 
-  if (
-    numerosEscolhidos.length === 0 ||
-    numerosEscolhidos.length > MAX_SELECTION
-  ) {
-    toast("Selecione entre 1 e 20 números.");
-    return;
+// =============================================
+// LIMPAR SELEÇÃO
+// =============================================
+
+$("clearSelection").addEventListener(
+  "click",
+  () => {
+    selectedNumbers.clear();
+    renderRoundDetail();
   }
+);
 
-  const roundId = selectedRoundId;
+// =============================================
+// REGISTRAR MÚLTIPLOS NÚMEROS
+// =============================================
 
-  try {
-    const barRef = doc(db, "bares", user.uid);
-    const ref = roundReference(roundId);
+$("numberForm").addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
 
-    await runTransaction(db, async transaction => {
-      const barSnap = await transaction.get(barRef);
-      const snapshot = await transaction.get(ref);
+    const nome =
+      $("participantName").value.trim();
 
-      if (barSnap.data()?.status !== "ativo") {
-        throw new Error("Estabelecimento bloqueado.");
-      }
-
-      if (!snapshot.exists()) {
-        throw new Error("Rodada não encontrada.");
-      }
-
-      const data = snapshot.data();
-      const existentes = data.numeros || [];
-
-      if (data.status !== "aberta") {
-        throw new Error("Rodada encerrada.");
-      }
-
-      const ocupados = new Set(
-        existentes.map(item => item.numero)
+    const numerosEscolhidos =
+      [...selectedNumbers].sort(
+        (a, b) => a - b
       );
 
-      for (const numero of numerosEscolhidos) {
-        if (ocupados.has(numero)) {
-          throw new Error(
-            `O número ${numero} já foi registrado.`
+    if (!nome || nome.length > 80) {
+      toast("Informe o nome do participante.");
+      return;
+    }
+
+    if (
+      !numerosEscolhidos.length ||
+      numerosEscolhidos.length > MAX_SELECTION
+    ) {
+      toast("Selecione entre 1 e 20 números.");
+      return;
+    }
+
+    const roundId = selectedRoundId;
+
+    try {
+      const barRef = doc(
+        db,
+        "bares",
+        user.uid
+      );
+
+      const ref =
+        roundReference(roundId);
+
+      await runTransaction(
+        db,
+        async transaction => {
+          const barSnap =
+            await transaction.get(barRef);
+
+          const snapshot =
+            await transaction.get(ref);
+
+          if (
+            barSnap.data()?.status !== "ativo"
+          ) {
+            throw new Error(
+              "Estabelecimento bloqueado."
+            );
+          }
+
+          if (!snapshot.exists()) {
+            throw new Error(
+              "Rodada não encontrada."
+            );
+          }
+
+          const data = snapshot.data();
+
+          const existentes =
+            data.numeros || [];
+
+          if (data.status !== "aberta") {
+            throw new Error(
+              "Rodada encerrada."
+            );
+          }
+
+          const ocupados = new Set(
+            existentes.map(
+              item => item.numero
+            )
           );
+
+          if (
+            numerosEscolhidos.some(
+              numero => ocupados.has(numero)
+            )
+          ) {
+            throw new Error(
+              "Um dos números selecionados já foi registrado."
+            );
+          }
+
+          if (
+            existentes.length +
+            numerosEscolhidos.length > 100
+          ) {
+            throw new Error(
+              "A rodada excederia 100 números."
+            );
+          }
+
+          const novos =
+            numerosEscolhidos.map(
+              numero => ({
+                numero,
+                nome
+              })
+            );
+
+          transaction.update(ref, {
+            numeros: [
+              ...existentes,
+              ...novos
+            ]
+          });
         }
-      }
+      );
 
-      if (existentes.length + numerosEscolhidos.length > 100) {
-        throw new Error("A rodada excederia 100 números.");
-      }
+      selectedNumbers.clear();
 
-      const novos = numerosEscolhidos.map(numero => ({
-        numero,
-        nome
-      }));
+      $("numberForm").reset();
 
-      transaction.update(ref, {
-        numeros: [...existentes, ...novos]
-      });
-    });
+      renderRoundDetail();
 
-    selectedNumbers.clear();
-    $("numberForm").reset();
-    toast("Números demonstrativos registrados!");
-    updateSelection();
+      toast(
+        "Números demonstrativos registrados!"
+      );
 
-  } catch (error) {
-    console.error(error);
-    toast(error.message || "Erro ao registrar números.");
+    } catch (error) {
+      handleError(error);
+    }
   }
-});
-
+);
 
 // =============================================
-// SIMULAÇÃO DO RESULTADO
+// SIMULAR RESULTADO
 // =============================================
 
-$("drawButton").addEventListener("click", async () => {
-  if (!selectedRoundId) return;
+$("drawButton").addEventListener(
+  "click",
+  async () => {
+    if (!selectedRoundId) return;
 
-  if (!confirm("Encerrar e mostrar o resultado desta rodada?")) {
-    return;
+    if (!confirm(
+      "Encerrar e simular o resultado desta rodada?"
+    )) {
+      return;
+    }
+
+    try {
+      const barRef = doc(
+        db,
+        "bares",
+        user.uid
+      );
+
+      const ref =
+        roundReference(selectedRoundId);
+
+      await runTransaction(
+        db,
+        async transaction => {
+          const barSnap =
+            await transaction.get(barRef);
+
+          const snapshot =
+            await transaction.get(ref);
+
+          if (
+            barSnap.data()?.status !== "ativo"
+          ) {
+            throw new Error(
+              "Estabelecimento bloqueado."
+            );
+          }
+
+          if (!snapshot.exists()) {
+            throw new Error(
+              "Rodada não encontrada."
+            );
+          }
+
+          const data =
+            snapshot.data();
+
+          if (data.status !== "aberta") {
+            throw new Error(
+              "Rodada encerrada."
+            );
+          }
+
+          const numeros =
+            data.numeros || [];
+
+          if (!numeros.length) {
+            throw new Error(
+              "Não há números registrados."
+            );
+          }
+
+          // Apenas simulação.
+          const limite =
+            Math.floor(
+              4294967296 / numeros.length
+            ) * numeros.length;
+
+          const bytes =
+            new Uint32Array(1);
+
+          let valor;
+
+          do {
+            crypto.getRandomValues(bytes);
+            valor = bytes[0];
+          } while (valor >= limite);
+
+          const indice =
+            valor % numeros.length;
+
+          transaction.update(ref, {
+            status: "encerrada",
+            resultado:
+              numeros[indice].numero
+          });
+        }
+      );
+
+      selectedNumbers.clear();
+
+      toast("Simulação concluída.");
+
+    } catch (error) {
+      handleError(error);
+    }
   }
-
-  try {
-    const barRef = doc(db, "bares", user.uid);
-    const ref = roundReference(selectedRoundId);
-
-    await runTransaction(db, async transaction => {
-      const barSnap = await transaction.get(barRef);
-      const snapshot = await transaction.get(ref);
-
-      if (barSnap.data()?.status !== "ativo") {
-        throw new Error("Estabelecimento bloqueado.");
-      }
-
-      if (!snapshot.exists()) {
-        throw new Error("Rodada não encontrada.");
-      }
-
-      const data = snapshot.data();
-
-      if (data.status !== "aberta") {
-        throw new Error("Esta rodada já foi encerrada.");
-      }
-
-      const numeros = data.numeros || [];
-
-      if (!numeros.length) {
-        throw new Error("Não há números registrados.");
-      }
-
-      // Somente simulação, sem prêmio ou valor real.
-      // Distribuição sem viés de módulo.
-      const limite = Math.floor(4294967296 / numeros.length)
-        * numeros.length;
-      const bytes = new Uint32Array(1);
-      let randomValue;
-
-      do {
-        crypto.getRandomValues(bytes);
-        randomValue = bytes[0];
-      } while (randomValue >= limite);
-
-      const indice = randomValue % numeros.length;
-      const resultado = numeros[indice].numero;
-
-      transaction.update(ref, {
-        status: "encerrada",
-        resultado
-      });
-    });
-
-    toast("Jogo concluído.");
-  } catch (error) {
-    handleError(error);
-  }
-});
+);
